@@ -90,9 +90,14 @@ local function TDT_BuildOpacitySection(yOffset)
 		valueText:SetText(string.format("%.2f", value))
 	end)
 
-	-- Set once at creation, outside the handler above - this alone doesn't loop since nothing here
-	-- calls SetValue again in response.
-	slider:SetValue(TeronDebugTools:GetBackgroundOpacity())
+	-- Deliberately NOT synced here with slider:SetValue(TeronDebugTools:GetBackgroundOpacity()) -
+	-- this function runs at file-load time, before ADDON_LOADED/before SavedVariables are actually
+	-- injected, so GetBackgroundOpacity() could only ever see the hardcoded default here, never a
+	-- real saved value. Worse, since SetValue() re-fires OnValueChanged, doing it here would WRITE
+	-- that default straight back into TeronDebugToolsDB, permanently stomping the real saved value
+	-- before it ever loads (the actual bug reported: opacity always resetting to 0.5 on /reload).
+	-- The real sync happens in TDT_RefreshModulesPanel() instead, which only runs once the user
+	-- actually opens this tab - always well after the addon has fully loaded.
 
 	return yOffset - 52
 end
@@ -154,6 +159,15 @@ local function TDT_BuildModulesPanel()
 end
 
 local function TDT_RefreshModulesPanel()
+	-- Real sync point for the opacity slider - see the long comment in TDT_BuildOpacitySection
+	-- for why this can't happen at build time. This does re-fire the slider's own OnValueChanged,
+	-- which writes the same value straight back to TeronDebugToolsDB - harmless here since by now
+	-- the DB is guaranteed to already hold the real loaded value, so it's a same-value no-op write.
+	local opacitySlider = getglobal("TeronDebugToolsOpacitySlider")
+	if opacitySlider then
+		opacitySlider:SetValue(TeronDebugTools:GetBackgroundOpacity())
+	end
+
 	local i
 	for i = 1, table.getn(TeronDebugTools.modules) do
 		local mod = TeronDebugTools.modules[i]

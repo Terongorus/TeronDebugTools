@@ -2,7 +2,7 @@
 ## Title: |cff33ff99Teron's Debug Tools|r
 ## Notes: Modular debugging & diagnostics toolkit - error catching, logging, variable inspection, and resource monitoring, all from one control panel.
 ## Author: Terongorus
-## Version: 1.0.0
+## Version: 1.0.1
 ## SavedVariables: TeronDebugToolsDB
 
 Core.lua

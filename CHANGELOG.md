@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-07-11
+
+### Fixed
+- The background-opacity slider never actually persisted: its initial value-sync ran at file-load
+  time, before `ADDON_LOADED`/before SavedVariables are injected, so it could only ever read the
+  hardcoded 0.5 default there - and since `Slider:SetValue()` re-fires `OnValueChanged`, that sync
+  was also *writing* 0.5 straight back into `TeronDebugToolsDB` every load, permanently
+  overwriting whatever the user had actually set before it ever got a chance to load. The sync now
+  happens when the Control Panel's Modules tab is actually shown instead, always well after the
+  real saved value is available.
+
 ## [1.0.0] - 2026-07-10
 
 ### Added
