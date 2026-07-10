@@ -1,0 +1,10 @@
+## Interface: 11200
+## Title: |cff33ff99Teron's Debug Tools|r - Variable Watcher
+## Notes: Inspect and watch Lua variables or expressions live. Part of Teron's Debug Tools.
+## Author: Terongorus
+## Version: 1.0.0
+## LoadOnDemand: 1
+## Dependencies: !TeronDebugTools
+## SavedVariables: TeronDebugTools_VariableWatcherDB
+
+VariableWatcher.lua

@@ -1,0 +1,10 @@
+## Interface: 11200
+## Title: |cff33ff99Teron's Debug Tools|r - Debug Log
+## Notes: Persistent, per-label log other tools (and your own addons) can write to. Part of Teron's Debug Tools.
+## Author: Terongorus
+## Version: 1.0.0
+## LoadOnDemand: 1
+## Dependencies: !TeronDebugTools
+## SavedVariables: TeronDebugTools_DebugLogDB
+
+DebugLog.lua

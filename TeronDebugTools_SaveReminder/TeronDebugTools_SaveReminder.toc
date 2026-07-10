@@ -1,0 +1,10 @@
+## Interface: 11200
+## Title: |cff33ff99Teron's Debug Tools|r - Save Reminder
+## Notes: Sends a configurable command to remind the server to save your character, on private servers that support one. Not a debugging tool - bonus, off by default. Part of Teron's Debug Tools.
+## Author: Terongorus
+## Version: 1.0.0
+## LoadOnDemand: 1
+## Dependencies: !TeronDebugTools
+## SavedVariablesPerCharacter: TeronDebugTools_SaveReminderDB
+
+SaveReminder.lua

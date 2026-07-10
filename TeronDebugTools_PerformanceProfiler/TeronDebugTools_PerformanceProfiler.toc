@@ -1,0 +1,9 @@
+## Interface: 11200
+## Title: |cff33ff99Teron's Debug Tools|r - Performance Profiler
+## Notes: On-demand profiler for frame OnEvent/OnUpdate handlers. Heavier - opt in when you need it. Part of Teron's Debug Tools.
+## Author: Terongorus
+## Version: 1.0.0
+## LoadOnDemand: 1
+## Dependencies: !TeronDebugTools
+
+PerformanceProfiler.lua
