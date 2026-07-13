@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-07-13
+
+### Fixed
+
+- Errors & Stack Traces: the 1.0.4 fix for own-frame noise in captured traces used a text-based
+  strip that kept removing lines for as long as they matched (mentioned `ErrorCatcher.lua`, or
+  were the literal `[C]: ?` dispatch stub). That's too broad: a genuine bug spanning several of
+  this module's own internal calls in a row could have real diagnostic frames swallowed right
+  along with the constant noise. Replaced it with `debugstack()`'s own `start` parameter, which
+  skips an exact frame count by position instead of by matching text - it only ever removes the
+  one guaranteed-noise frame (this module's own handler), so a real bug anywhere else - including
+  deeper inside this module's own code - now always shows in full.
+
 ## [1.0.4] - 2026-07-13
 
 ### Fixed
