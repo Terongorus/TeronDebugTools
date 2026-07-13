@@ -266,10 +266,21 @@ TDT_ECEvents:SetScript("OnEvent", function()
 		if TeronDebugTools and TeronDebugTools.RegisterModule and TeronDebugTools_ErrorCatcherFrame and TeronDebugTools_ErrorCatcherFrame.BuildControlPanel then
 			TeronDebugTools:RegisterModule("ErrorCatcher", TeronDebugTools_ErrorCatcherFrame.BuildControlPanel)
 		end
+	elseif event == "ADDON_LOADED" then
+		-- Some addons (e.g. ShaguTweaks' base main.lua, not just its optional "Hide Errors" mod)
+		-- call seterrorhandler unconditionally at their own file-load time, not gated behind any
+		-- later event. Addon loading is sequential and ADDON_LOADED fires synchronously right
+		-- after each addon's own files finish, so an addon loading between us and a later one
+		-- can steal the handler and keep it for every error that later addon throws *during its
+		-- own loading* - well before PLAYER_LOGIN or the watchdog's first tick ever run (OnUpdate
+		-- scripts don't fire at all until the client starts rendering frames, after the whole
+		-- loading burst is done). Reclaiming after every single addon's load closes that window:
+		-- whichever addon just finished loading has already had its one chance to steal the
+		-- handler, so this always takes it back before the *next* addon's files execute.
+		TDT_EC_ClaimErrorHandler(true)
 	elseif event == "PLAYER_LOGIN" then
-		-- Every other addon's ADDON_LOADED and VARIABLES_LOADED handling (including any
-		-- error-handler reassignment they do there) is guaranteed to have already run by the
-		-- time PLAYER_LOGIN fires, so this reclaim is deterministic - not a race.
+		-- Backstop for anything that reasserts the handler outside the ADDON_LOADED sequence
+		-- entirely (e.g. VARIABLES_LOADED-time, like ShaguTweaks' "Hide Errors" mod).
 		TDT_EC_ClaimErrorHandler(true)
 	elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
 		local kind = "BLOCKED"

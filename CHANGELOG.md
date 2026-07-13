@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-07-13
+
+### Fixed
+
+- Errors & Stack Traces: errors thrown by an addon *during the initial addon-loading burst*
+  (before `PLAYER_LOGIN` and before the watchdog's first tick - `OnUpdate` scripts don't fire at
+  all until the client starts rendering frames, well after every addon has loaded) could still go
+  uncaught. Some addons (e.g. ShaguTweaks' base `main.lua`, not only its optional "Hide Errors"
+  mod) call `seterrorhandler` unconditionally at their own file-load time; since addon loading is
+  sequential and `ADDON_LOADED` fires synchronously right after each addon's files finish, such an
+  addon loading between this one and a later addon could steal the handler for every error that
+  later addon throws during its own load, with neither the `PLAYER_LOGIN` reclaim nor the watchdog
+  able to run in time to catch it. The handler is now reclaimed after every single addon's
+  `ADDON_LOADED` event, not just this module's own - whichever addon just finished loading has
+  already had its one chance to steal the slot, so it's always taken back before the next addon's
+  files (and its errors) execute.
+
 ## [1.1.1] - 2026-07-13
 
 ### Fixed
