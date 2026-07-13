@@ -2,7 +2,7 @@
 ## Title: |cff33ff99Teron's Debug Tools|r - Errors & Stack Traces
 ## Notes: Catches Lua errors and shows the stack trace, with an alert popup. Part of Teron's Debug Tools.
 ## Author: Terongorus
-## Version: 1.0.2
+## Version: 1.0.3
 ## LoadOnDemand: 1
 ## Dependencies: !TeronDebugTools
 ## SavedVariables: TeronDebugTools_ErrorCatcherDB

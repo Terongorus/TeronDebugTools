@@ -175,11 +175,10 @@ end)
 -- corner close X since a big, obvious dismiss button is easier to notice on a window that just
 -- auto-popped up over whatever else was on screen. Centered, matching BugSack's layout.
 local okayButton = CreateFrame("Button", "TeronDebugToolsErrorCatcherOkay", frame, "UIPanelButtonTemplate")
-okayButton:SetWidth(80)
-okayButton:SetHeight(24)
+okayButton:SetWidth(96)
+okayButton:SetHeight(28)
 okayButton:SetPoint("BOTTOM", frame, "BOTTOM", 0, 16)
 okayButton:SetText("Okay")
-okayButton:GetFontString():SetTextColor(1, 0.35, 0.35)
 okayButton:SetScript("OnClick", function()
 	frame:Hide()
 end)
