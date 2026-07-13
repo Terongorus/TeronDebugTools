@@ -7,6 +7,9 @@ TeronDebugTools_ErrorCatcherFrame = {}
 local ECF = TeronDebugTools_ErrorCatcherFrame
 ECF.cur = 1
 ECF.unreadCount = 0
+-- nil means "All addons" (unfiltered, the default/original view). Set to an addon's owning-addon
+-- name (see ErrorCatcher.lua's TDT_EC_ExtractOwningAddon) to page through only that addon's errors.
+ECF.filterAddon = nil
 
 local frame = CreateFrame("Frame", "TeronDebugToolsErrorCatcherWindow", UIParent)
 frame:SetWidth(500)
@@ -49,8 +52,17 @@ captionText:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -12)
 captionText:SetTextColor(1, 0.82, 0)
 captionText:SetText("No errors yet")
 
+-- Cycles ECF.filterAddon through "All" -> each addon that has at least one captured error (built
+-- fresh on every click, alphabetical) -> back to "All". The click handler itself is attached
+-- further down, once TDT_ECF_Refresh exists to call - see the comment there.
+local addonFilterButton = CreateFrame("Button", "TeronDebugToolsErrorCatcherAddonFilter", frame, "UIPanelButtonTemplate")
+addonFilterButton:SetWidth(220)
+addonFilterButton:SetHeight(20)
+addonFilterButton:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
+addonFilterButton:SetText("Addon: All")
+
 local scrollFrame = CreateFrame("ScrollFrame", "TeronDebugToolsErrorCatcherScroll", frame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -40)
+scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -62)
 scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 56)
 
 local editBox = CreateFrame("EditBox", "TeronDebugToolsErrorCatcherEditBox", scrollFrame)
@@ -103,12 +115,55 @@ local function TDT_ECF_FormatEntry(entry)
 	return header .. "\n" .. TDT_ECF_ColorizeMessage(entry.message)
 end
 
-local function TDT_ECF_Refresh()
+-- Every distinct owning addon (see ErrorCatcher.lua's TDT_EC_ExtractOwningAddon) with at least
+-- one captured error this session, alphabetical. Rebuilt fresh on demand rather than cached, since
+-- new addons can start showing up at any time as new errors are captured.
+local function TDT_ECF_GetAddonList()
 	local list = TeronDebugTools_ErrorCatcher:GetErrors()
+	local seen = {}
+	local addons = {}
+	local i
+	for i = 1, table.getn(list) do
+		local addon = list[i].addon or "Unknown/Blizzard"
+		if not seen[addon] then
+			seen[addon] = true
+			table.insert(addons, addon)
+		end
+	end
+	table.sort(addons)
+	return addons
+end
+
+-- The full session error list when ECF.filterAddon is nil ("All"), otherwise just the errors
+-- owned by that one addon - see the "deepest frame owns it" attribution rule in ErrorCatcher.lua.
+local function TDT_ECF_GetFilteredList()
+	local list = TeronDebugTools_ErrorCatcher:GetErrors()
+	if not ECF.filterAddon then
+		return list
+	end
+
+	local filtered = {}
+	local i
+	for i = 1, table.getn(list) do
+		if (list[i].addon or "Unknown/Blizzard") == ECF.filterAddon then
+			table.insert(filtered, list[i])
+		end
+	end
+	return filtered
+end
+
+local function TDT_ECF_Refresh()
+	local list = TDT_ECF_GetFilteredList()
 	local total = table.getn(list)
 
+	addonFilterButton:SetText("Addon: " .. (ECF.filterAddon or "All"))
+
 	if total == 0 then
-		captionText:SetText("No errors yet")
+		if ECF.filterAddon then
+			captionText:SetText("No errors from " .. ECF.filterAddon)
+		else
+			captionText:SetText("No errors yet")
+		end
 		TDT_ECF_SetContent("Nothing caught this session. Nice.")
 		return
 	end
@@ -120,12 +175,40 @@ local function TDT_ECF_Refresh()
 		ECF.cur = 1
 	end
 
-	captionText:SetText("Error " .. ECF.cur .. " of " .. total .. " (viewing session errors)")
+	captionText:SetText("Error " .. ECF.cur .. " of " .. total .. " (" .. (ECF.filterAddon or "all addons") .. ")")
 	TDT_ECF_SetContent(TDT_ECF_FormatEntry(list[ECF.cur]))
 end
 
+-- Attached here (rather than right after the button is created) so it can call TDT_ECF_Refresh,
+-- which is defined above.
+addonFilterButton:SetScript("OnClick", function()
+	local addons = TDT_ECF_GetAddonList()
+
+	if not ECF.filterAddon then
+		ECF.filterAddon = addons[1]
+	else
+		local currentIndex
+		local i
+		for i = 1, table.getn(addons) do
+			if addons[i] == ECF.filterAddon then
+				currentIndex = i
+				break
+			end
+		end
+
+		if not currentIndex or currentIndex >= table.getn(addons) then
+			ECF.filterAddon = nil
+		else
+			ECF.filterAddon = addons[currentIndex + 1]
+		end
+	end
+
+	ECF.cur = 1
+	TDT_ECF_Refresh()
+end)
+
 local function TDT_ECF_ShowLatest()
-	local list = TeronDebugTools_ErrorCatcher:GetErrors()
+	local list = TDT_ECF_GetFilteredList()
 	ECF.cur = table.getn(list)
 	TDT_ECF_Refresh()
 end
@@ -181,26 +264,6 @@ okayButton:SetPoint("BOTTOM", frame, "BOTTOM", 0, 16)
 okayButton:SetText("Okay")
 okayButton:SetScript("OnClick", function()
 	frame:Hide()
-end)
-
--- The top-right corner is already crowded (close X button + the scroll frame's own scrollbar
--- both sit there), so this goes in the gap between Next and the centered Okay button instead.
-local clearButton = CreateFrame("Button", "TeronDebugToolsErrorCatcherClear", frame, "UIPanelButtonTemplate")
-clearButton:SetWidth(50)
-clearButton:SetHeight(22)
-clearButton:SetPoint("LEFT", nextButton, "RIGHT", 8, 0)
-clearButton:SetText("Clear")
-clearButton:SetScript("OnClick", function()
-	local list = TeronDebugTools_ErrorCatcher:GetErrors()
-	local n = table.getn(list)
-	local i
-	for i = n, 1, -1 do
-		table.remove(list, i)
-	end
-	ECF.cur = 1
-	TDT_ECF_Refresh()
-	TeronDebugTools:SetMinimapBadge(0)
-	ECF.unreadCount = 0
 end)
 
 function ECF:Show()

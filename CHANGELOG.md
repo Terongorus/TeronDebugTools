@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-13
+
+### Added
+
+- Errors & Stack Traces: errors are now attributed to a single owning addon - whichever file the
+  deepest/innermost frame in the trace belongs to, i.e. wherever the fault actually happened, not
+  every addon that merely appears higher up as a caller in the same hook chain. A new "Addon: All"
+  button cycles through every addon that has captured errors this session; picking one pages
+  through only that addon's errors ("Error 1 of 1" etc. now count within the current filter, not
+  the whole session).
+
+### Changed
+
+- Errors & Stack Traces: occurrence-counter dedup now scans back through the whole session for any
+  prior matching error, not just the literal last one - so if an unrelated addon's error lands in
+  between two occurrences of the same bug, the counter still finds and increments the earlier
+  entry instead of splitting into separate "x1" records.
+
+### Removed
+
+- Errors & Stack Traces: removed the "Clear" button from the error window.
+
 ## [1.0.5] - 2026-07-13
 
 ### Fixed

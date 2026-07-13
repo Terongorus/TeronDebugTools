@@ -24,6 +24,35 @@ local function TDT_EC_Trim(str, maxLen)
 	return str
 end
 
+-- Attributes an error to a single "owning" addon: whichever file the *deepest* (first/innermost)
+-- frame belongs to, i.e. wherever the fault actually happened - not every addon that merely
+-- appears somewhere higher up as a caller. A hook chain routinely runs several addons' code back
+-- to back (as here: Blizzard's TradeSkillRankFrame:OnEvent -> TeronAtlas's TradeSkillFrame_Update
+-- hook -> ShaguTweaks' own hook on the same function -> ShaguTweaks passing a bad argument to a
+-- Blizzard API), but only the addon whose own code actually made the bad call is at fault; the
+-- others are just innocent callers that happened to trigger it this particular time. Vanilla's
+-- own error string format is "path\to\file.lua:LINE: message", so the addon folder name is always
+-- extractable straight from the first line, without needing to walk the rest of the trace.
+local function TDT_EC_ExtractOwningAddon(message)
+	local firstLine = message
+	local newlinePos = string.find(message, "\n", 1, true)
+	if newlinePos then
+		firstLine = string.sub(message, 1, newlinePos - 1)
+	end
+
+	local _, _, blockedAddon = string.find(firstLine, "^ADDON_ACTION_%a+: (%S+) tried to call")
+	if blockedAddon then
+		return blockedAddon
+	end
+
+	local _, _, addonName = string.find(firstLine, "AddOns\\([^\\]+)\\")
+	if addonName then
+		return addonName
+	end
+
+	return "Unknown/Blizzard"
+end
+
 local function TDT_EC_InitDB()
 	if not TeronDebugTools_ErrorCatcherDB then
 		TeronDebugTools_ErrorCatcherDB = {}
@@ -78,11 +107,24 @@ function EC:RecordError(message)
 		message = TDT_EC_Trim(message, MAX_MESSAGE_LENGTH)
 
 		local list = self:GetErrors()
-		local last = list[table.getn(list)]
 
-		if last and last.message == message and last.session == self.session then
-			last.counter = last.counter + 1
-			last.time = date("%H:%M:%S")
+		-- Scan back for *any* prior match this session, not just the literal last entry: if an
+		-- unrelated addon's error happens to land in between two occurrences of the same bug, the
+		-- occurrence counter should still find and increment the earlier one instead of fragmenting
+		-- into separate "x1" entries.
+		local matched
+		local i
+		for i = table.getn(list), 1, -1 do
+			local candidate = list[i]
+			if candidate.message == message and candidate.session == self.session then
+				matched = candidate
+				break
+			end
+		end
+
+		if matched then
+			matched.counter = matched.counter + 1
+			matched.time = date("%H:%M:%S")
 		else
 			local limit = DEFAULT_LIMIT
 			if TeronDebugTools_ErrorCatcherDB then
@@ -94,6 +136,7 @@ function EC:RecordError(message)
 				session = self.session,
 				counter = 1,
 				time = date("%H:%M:%S"),
+				addon = TDT_EC_ExtractOwningAddon(message),
 			})
 
 			while table.getn(list) > limit do
