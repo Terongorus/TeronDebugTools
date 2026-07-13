@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-07-13
+
+### Fixed
+
+- Errors & Stack Traces: `seterrorhandler` is a single global slot, not a chain, so whichever
+  addon calls it *last* wins for the rest of the session. Tweak addons that install a "hide Lua
+  errors" style handler after this module's own `ADDON_LOADED`-time install (e.g. ShaguTweaks'
+  "Hide Errors" mod, which replaces the global `error` with a no-op and re-asserts it via
+  `seterrorhandler`) silently swallowed every error from that point on, with no indication
+  anything had changed. The catcher's handler is now a named, comparable function so it can
+  detect via `geterrorhandler()` whether something else has taken the slot, and reclaims it:
+  once at install, again at `PLAYER_LOGIN` (deterministically after every other addon's own
+  `ADDON_LOADED`/`VARIABLES_LOADED`-time setup has run - covers both normal login and any
+  in-session settings toggle that triggers a `ReloadUI()`), and periodically via a lightweight
+  watchdog as a backstop against anything reasserted later still. A chat message now announces
+  when a reclaim actually happens, so this kind of interference is visible instead of silent.
+
 ## [1.0.1] - 2026-07-11
 
 ### Fixed

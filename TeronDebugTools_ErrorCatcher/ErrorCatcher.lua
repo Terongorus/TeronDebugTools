@@ -149,6 +149,31 @@ local function TDT_EC_HookedSetText(messageFrame, text)
 	end
 end
 
+-- seterrorhandler is a single global slot, not a chain - whichever addon calls it *last* wins for
+-- the rest of the session. Several tweak addons (e.g. ShaguTweaks' "Hide Errors" mod, which
+-- replaces the global `error` with a no-op and re-calls seterrorhandler on it) reassert the slot
+-- well after this module's own ADDON_LOADED-time install, silently swallowing every error from
+-- that point on with no indication anything changed. TDT_EC_ClaimErrorHandler is a named,
+-- comparable function (not a fresh closure) so callers can detect via geterrorhandler() whether
+-- something else has taken the slot, and reclaim it - called once at install, again at PLAYER_LOGIN
+-- (deterministically after every other addon's own VARIABLES_LOADED-time setup has run), and then
+-- periodically by a watchdog below as a backstop against anything reasserted even later (e.g. a
+-- live options-panel toggle).
+local function TDT_EC_ErrorHandlerFn(err)
+	EC:RecordError(tostring(err) .. "\n" .. debugstack())
+end
+
+local function TDT_EC_ClaimErrorHandler(announceIfReclaimed)
+	if geterrorhandler() == TDT_EC_ErrorHandlerFn then
+		return
+	end
+	local stolenBy = geterrorhandler()
+	seterrorhandler(TDT_EC_ErrorHandlerFn)
+	if announceIfReclaimed and stolenBy ~= nil then
+		DEFAULT_CHAT_FRAME:AddMessage("|cffff5555[Teron's Debug Tools]|r Error Catcher's error handler had been overridden by another addon (likely a \"hide Lua errors\" style tweak) - reclaimed it.")
+	end
+end
+
 local function TDT_EC_Enable()
 	TDT_EC_InitDB()
 
@@ -160,13 +185,23 @@ local function TDT_EC_Enable()
 		ScriptErrors.Show = function() end
 	end
 
-	seterrorhandler(function(err)
-		EC:RecordError(tostring(err) .. "\n" .. debugstack())
+	TDT_EC_ClaimErrorHandler(false)
+
+	local watchdog = CreateFrame("Frame", "TeronDebugToolsErrorCatcherWatchdog")
+	local elapsed = 0
+	watchdog:SetScript("OnUpdate", function()
+		elapsed = elapsed + arg1
+		if elapsed < 2 then
+			return
+		end
+		elapsed = 0
+		TDT_EC_ClaimErrorHandler(true)
 	end)
 end
 
 local TDT_ECEvents = CreateFrame("Frame", "TeronDebugToolsErrorCatcherEvents")
 TDT_ECEvents:RegisterEvent("ADDON_LOADED")
+TDT_ECEvents:RegisterEvent("PLAYER_LOGIN")
 TDT_ECEvents:RegisterEvent("ADDON_ACTION_BLOCKED")
 TDT_ECEvents:RegisterEvent("ADDON_ACTION_FORBIDDEN")
 TDT_ECEvents:SetScript("OnEvent", function()
@@ -175,6 +210,11 @@ TDT_ECEvents:SetScript("OnEvent", function()
 		if TeronDebugTools and TeronDebugTools.RegisterModule and TeronDebugTools_ErrorCatcherFrame and TeronDebugTools_ErrorCatcherFrame.BuildControlPanel then
 			TeronDebugTools:RegisterModule("ErrorCatcher", TeronDebugTools_ErrorCatcherFrame.BuildControlPanel)
 		end
+	elseif event == "PLAYER_LOGIN" then
+		-- Every other addon's ADDON_LOADED and VARIABLES_LOADED handling (including any
+		-- error-handler reassignment they do there) is guaranteed to have already run by the
+		-- time PLAYER_LOGIN fires, so this reclaim is deterministic - not a race.
+		TDT_EC_ClaimErrorHandler(true)
 	elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
 		local kind = "BLOCKED"
 		if event == "ADDON_ACTION_FORBIDDEN" then
