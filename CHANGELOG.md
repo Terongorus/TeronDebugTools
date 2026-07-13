@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-07-13
+
+### Fixed
+
+- Errors & Stack Traces: `debugstack()` was being called from *inside* the error-handler and
+  SetText hook functions themselves, so every captured trace led with that hook's own frame (and,
+  for the error-handler path, an opaque `[C]: ?` dispatch stub above it) - noise unrelated to the
+  actual error that pushed the real, useful frames down and could read as if this addon itself
+  were implicated. Those leading frames are now stripped before the trace is stored/displayed.
+
 ## [1.0.3] - 2026-07-13
 
 ### Fixed

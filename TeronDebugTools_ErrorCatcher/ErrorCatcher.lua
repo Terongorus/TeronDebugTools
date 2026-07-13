@@ -142,8 +142,43 @@ end
 
 local originalSetText = nil
 
+-- debugstack() captures whatever the *current* call stack is, so calling it from inside our own
+-- SetText hook or error handler naturally puts that hook's own frame - and, for the error-handler
+-- path, an opaque "[C]: ?" dispatch stub the client's error routing leaves above it - at the very
+-- top of the trace. Neither line has anything to do with the actual error; they just push the
+-- real, useful frames (the erroring function and its callers) down and can read as if this addon
+-- itself were implicated. Strip them before the trace is stored/displayed.
+local function TDT_EC_StripOwnFrames(stack)
+	if not stack then
+		return stack
+	end
+
+	local lines = {}
+	local line
+	for line in string.gfind(stack, "([^\n]+)") do
+		table.insert(lines, line)
+	end
+
+	local startIndex = 1
+	while startIndex <= table.getn(lines) do
+		local l = lines[startIndex]
+		if string.find(l, "ErrorCatcher%.lua", 1) or l == "[C]: ?" then
+			startIndex = startIndex + 1
+		else
+			break
+		end
+	end
+
+	local kept = {}
+	local i
+	for i = startIndex, table.getn(lines) do
+		table.insert(kept, lines[i])
+	end
+	return table.concat(kept, "\n")
+end
+
 local function TDT_EC_HookedSetText(messageFrame, text)
-	EC:RecordError((text or "") .. "\n" .. debugstack())
+	EC:RecordError((text or "") .. "\n" .. TDT_EC_StripOwnFrames(debugstack()))
 	if originalSetText then
 		originalSetText(messageFrame, text)
 	end
@@ -160,7 +195,7 @@ end
 -- periodically by a watchdog below as a backstop against anything reasserted even later (e.g. a
 -- live options-panel toggle).
 local function TDT_EC_ErrorHandlerFn(err)
-	EC:RecordError(tostring(err) .. "\n" .. debugstack())
+	EC:RecordError(tostring(err) .. "\n" .. TDT_EC_StripOwnFrames(debugstack()))
 end
 
 local function TDT_EC_ClaimErrorHandler(announceIfReclaimed)
