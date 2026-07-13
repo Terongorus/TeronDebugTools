@@ -122,22 +122,25 @@ function EC:RecordError(message)
 			end
 		end
 
+		local touched
 		if matched then
 			matched.counter = matched.counter + 1
 			matched.time = date("%H:%M:%S")
+			touched = matched
 		else
 			local limit = DEFAULT_LIMIT
 			if TeronDebugTools_ErrorCatcherDB then
 				limit = TeronDebugTools_ErrorCatcherDB.limit
 			end
 
-			table.insert(list, {
+			touched = {
 				message = message,
 				session = self.session,
 				counter = 1,
 				time = date("%H:%M:%S"),
 				addon = TDT_EC_ExtractOwningAddon(message),
-			})
+			}
+			table.insert(list, touched)
 
 			while table.getn(list) > limit do
 				table.remove(list, 1)
@@ -147,7 +150,7 @@ function EC:RecordError(message)
 		TeronDebugTools:Log("ErrorCatcher", message)
 
 		if TeronDebugTools_ErrorCatcherFrame and TeronDebugTools_ErrorCatcherFrame.OnNewError then
-			TeronDebugTools_ErrorCatcherFrame:OnNewError()
+			TeronDebugTools_ErrorCatcherFrame:OnNewError(touched)
 		end
 	end)
 

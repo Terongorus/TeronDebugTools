@@ -285,12 +285,22 @@ function ECF:Toggle()
 	end
 end
 
--- Called by the capture backend (ErrorCatcher.lua) every time a new/duplicate error is recorded.
-function ECF:OnNewError()
+-- Called by the capture backend (ErrorCatcher.lua) every time a new/duplicate error is recorded,
+-- with the specific entry that was just touched (newly inserted, or an existing one whose
+-- occurrence counter just incremented).
+function ECF:OnNewError(entry)
 	local db = TeronDebugTools_ErrorCatcherDB
 
 	if db and db.soundEnabled then
 		PlaySound("RaidWarning")
+	end
+
+	-- If currently filtered to some other addon, that filter would hide the very error that's
+	-- about to pop up or refresh into view - drop back to "All" so what just happened is never
+	-- hidden behind a stale filter left over from earlier browsing.
+	if entry and ECF.filterAddon and entry.addon ~= ECF.filterAddon then
+		ECF.filterAddon = nil
+		ECF.cur = 1
 	end
 
 	if frame:IsShown() then

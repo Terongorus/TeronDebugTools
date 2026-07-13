@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-07-13
+
+### Fixed
+
+- Errors & Stack Traces: a new error auto-popping up (or refreshing an already-open window) while
+  filtered to a different addon than the one that just errored would hide the very error that
+  triggered it - either showing a stale unrelated entry, or "No errors from X". The window now
+  drops back to "All" automatically whenever the error that just fired isn't visible under the
+  current filter.
+
 ## [1.1.0] - 2026-07-13
 
 ### Added
